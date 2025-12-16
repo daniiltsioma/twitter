@@ -18,6 +18,11 @@ type Tweet struct {
 	Text string `json:"text"`
 }
 
+type User struct {
+	ID int64 `json:"id"`
+	Username string `json:"username" gorm:"uniqueIndex"`
+} 
+
 func main() {
 	var err error
 	db, err = gorm.Open(sqlite.Open("twitter.db"))
@@ -25,12 +30,15 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	db.AutoMigrate(&Tweet{})
+	db.AutoMigrate(&Tweet{}, &User{})
 
 	r := chi.NewRouter()
 
 	r.Post("/tweet", postTweet)
 	r.Get("/tweet/{tweetID}", getTweet)
+
+	r.Post("/user", createUser)
+	r.Get("/user/{username}", getUser)
 
 	fmt.Printf("server listening on port 8080\n")
 	http.ListenAndServe(":8080", r)
@@ -68,4 +76,37 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tweet)
+}
+
+func createUser(w http.ResponseWriter, r *http.Request) {
+	var user User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "invalid JSON" + err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if user.Username == "" {
+		http.Error(w, "username cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if err := gorm.G[User](db, gorm.WithResult()).Create(r.Context(), &user); err != nil {
+		http.Error(w, "could not create user:" + err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
+}
+
+func getUser(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+	user, err := gorm.G[User](db).Where("username = ?", username).First(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 }
