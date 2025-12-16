@@ -30,6 +30,7 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Post("/tweet", postTweet)
+	r.Get("/tweet/{tweetID}", getTweet)
 
 	fmt.Printf("server listening on port 8080\n")
 	http.ListenAndServe(":8080", r)
@@ -53,5 +54,18 @@ func postTweet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(tweet)
+}
+
+func getTweet(w http.ResponseWriter, r *http.Request) {
+	tweetID := chi.URLParam(r, "tweetID")
+	
+	tweet, err := gorm.G[Tweet](db).Where("ID = ?", tweetID).First(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tweet)
 }
