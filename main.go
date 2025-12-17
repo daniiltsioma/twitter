@@ -34,9 +34,9 @@ type User struct {
 } 
 
 type Follow struct {
-	ID int64 `gorm:"primaryKey"`
-	FollowerID int64 `json:"followerId"`
-	FollowedID int64 `json:"followedId"`
+	ID int64 
+	FollowerID int64 `json:"followerId" gorm:"primaryKey"`
+	FollowedID int64 `json:"followedId" gorm:"primaryKey"`
 	Follower User `gorm:"foreignKey:FollowerID"`
 	Followed User `gorm:"foreignKey:FollowedID"`
 }
@@ -57,18 +57,18 @@ func main() {
 		r.Use(jwtauth.Authenticator)
 	
 		r.Post("/tweet", postTweet)
+		r.Post("/follow", followUser)
+		r.Delete("/follow", unfollowUser)
 	})
-
+	
 	r.Group(func(r chi.Router) {
 		r.Post("/register", register)
 		r.Post("/login", login)
-	
+		
 		r.Get("/tweet/{tweetID}", getTweet)
-	
+		
 		r.Get("/user/{username}", getUser)
-	
-		r.Post("/follow", followUser)
-		r.Delete("/follow", unfollowUser)
+		
 	
 		r.Get("/timeline/{userID}", getUserTimeline)
 	})
@@ -158,12 +158,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func postTweet(w http.ResponseWriter, r *http.Request) {
-	_, claims, err := jwtauth.FromContext(r.Context())
-	if err != nil {
-		log.Printf("jwt error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userId := int64(claims["user_id"].(float64))
 
 	var tweet Tweet
 
@@ -172,7 +168,7 @@ func postTweet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tweet.UserID = int64(claims["user_id"].(float64))
+	tweet.UserID = userId
 
 	if tweet.Text == "" {
 		http.Error(w, "tweet.Text cannot be empty", http.StatusBadRequest)
@@ -214,6 +210,9 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func followUser(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userId := int64(claims["user_id"].(float64))
+
 	var follow Follow
 
 	if err := json.NewDecoder(r.Body).Decode(&follow); err != nil {
@@ -221,7 +220,9 @@ func followUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if follow.FollowerID == 0 || follow.FollowedID == 0 {
+	follow.FollowerID = userId
+
+	if follow.FollowedID == 0 {
 		http.Error(w, "missing fields", http.StatusBadRequest)
 		return
 	}
@@ -241,13 +242,19 @@ func followUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func unfollowUser(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userId := int64(claims["user_id"].(float64))
+
 	var unfollow Follow
+
 	if err := json.NewDecoder(r.Body).Decode(&unfollow); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if unfollow.FollowerID == 0 || unfollow.FollowedID == 0 {
+	unfollow.FollowerID = userId
+
+	if unfollow.FollowedID == 0 {
 		http.Error(w, "missing fields", http.StatusBadRequest)
 		return
 	}
