@@ -7,11 +7,18 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/jwtauth"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 var db *gorm.DB
+var tokenAuth *jwtauth.JWTAuth
+
+func init() {
+	tokenAuth = jwtauth.New("HS256", []byte("secret"), nil)
+}
 
 type Tweet struct {
 	ID int64 `gorm:"primaryKey"`
@@ -23,7 +30,7 @@ type Tweet struct {
 type User struct {
 	ID int64 `gorm:"primaryKey"`
 	Username string `json:"username" gorm:"uniqueIndex"`
-	Follows []Follow `gorm:"foreignKey:FollowerID"`
+	PasswordHash string `json:"-"`
 } 
 
 type Follow struct {
@@ -45,32 +52,127 @@ func main() {
 
 	r := chi.NewRouter()
 
-	r.Post("/tweet", postTweet)
-	r.Get("/tweet/{tweetID}", getTweet)
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(jwtauth.Authenticator)
+	
+		r.Post("/tweet", postTweet)
+	})
 
-	r.Post("/user", createUser)
-	r.Get("/user/{username}", getUser)
+	r.Group(func(r chi.Router) {
+		r.Post("/register", register)
+		r.Post("/login", login)
+	
+		r.Get("/tweet/{tweetID}", getTweet)
+	
+		r.Get("/user/{username}", getUser)
+	
+		r.Post("/follow", followUser)
+		r.Delete("/follow", unfollowUser)
+	
+		r.Get("/timeline/{userID}", getUserTimeline)
+	})
 
-	r.Post("/follow", followUser)
-	r.Delete("/follow", unfollowUser)
-
-	r.Get("/timeline/{userID}", getUserTimeline)
 
 	fmt.Printf("server listening on port 8080\n")
 	http.ListenAndServe(":8080", r)
 }
 
+func register(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if in.Username == "" || in.Password == "" {
+		http.Error(w, "missing fields", http.StatusBadRequest)
+		return
+	}
+
+	// hash password
+	pwHash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("error hashing password: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	user := User{
+		Username: in.Username,
+		PasswordHash: string(pwHash),
+	}
+
+	err = gorm.G[User](db, gorm.WithResult()).Create(r.Context(), &user)
+	if err != nil {
+		log.Printf("error creating user: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if in.Username == "" || in.Password == "" {
+		http.Error(w, "missing fields", http.StatusBadRequest)
+		return
+	}
+
+	user, err := gorm.G[User](db).Where("username = ?", in.Username).First(r.Context())
+	if err != nil {
+		log.Printf("user not found: %s", in.Username)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(in.Password)); err != nil {
+		log.Printf("wrong password for %s", in.Username)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	_, tokenString, err := tokenAuth.Encode(map[string]interface{}{"user_id": user.ID})
+	if err != nil {
+		log.Printf("jwt error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+}
+
 func postTweet(w http.ResponseWriter, r *http.Request) {
+	_, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		log.Printf("jwt error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	var tweet Tweet
+
 	if err := json.NewDecoder(r.Body).Decode(&tweet); err != nil {
 		http.Error(w, "invalid JSON: " + err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if tweet.UserID == 0 {
-		http.Error(w, "tweet.UserID required", http.StatusBadRequest)
-		return
-	}
+	tweet.UserID = int64(claims["user_id"].(float64))
 
 	if tweet.Text == "" {
 		http.Error(w, "tweet.Text cannot be empty", http.StatusBadRequest)
@@ -97,27 +199,6 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tweet)
-}
-
-func createUser(w http.ResponseWriter, r *http.Request) {
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "invalid JSON" + err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if user.Username == "" {
-		http.Error(w, "user.Username cannot be empty", http.StatusBadRequest)
-		return
-	}
-
-	if err := gorm.G[User](db, gorm.WithResult()).Create(r.Context(), &user); err != nil {
-		http.Error(w, "could not create user:" + err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
 }
 
 func getUser(w http.ResponseWriter, r *http.Request) {
