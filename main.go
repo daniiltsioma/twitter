@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 
-	tweetapi "github.com/daniiltsioma/twitter/api"
-	"github.com/daniiltsioma/twitter/models"
+	"github.com/daniiltsioma/twitter/internal/handler"
+	"github.com/daniiltsioma/twitter/internal/models"
+	tweetservice "github.com/daniiltsioma/twitter/internal/tweet"
+	userservice "github.com/daniiltsioma/twitter/internal/user"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
 	"gorm.io/driver/sqlite"
@@ -20,7 +22,6 @@ func init() {
 	tokenAuth = jwtauth.New("HS256", []byte("secret"), nil)
 }
 
-
 func main() {
 	var err error
 	db, err = gorm.Open(sqlite.Open("twitter.db?_foreign_keys=on"), &gorm.Config{})
@@ -30,7 +31,11 @@ func main() {
 
 	db.AutoMigrate(&models.Tweet{}, &models.User{}, &models.Follow{})
 
-	api := tweetapi.NewTweetAPI(db, tokenAuth)
+	tweetService := tweetservice.NewTweetService(db)
+	userService := userservice.NewUserService(db, tokenAuth)
+
+	tweetHandler := handler.NewTweetHandler(tweetService)
+	userHandler := handler.NewUserHandler(userService)
 
 	r := chi.NewRouter()
 
@@ -39,47 +44,22 @@ func main() {
 			r.Use(jwtauth.Verifier(tokenAuth))
 			r.Use(jwtauth.Authenticator)
 		
-			r.Post("/tweet", api.PostTweet)
-			r.Post("/follow", api.FollowUser)
-			r.Delete("/follow", api.UnfollowUser)
-			r.Get("/timeline", api.GetUserTimeline)
+			r.Post("/tweet", tweetHandler.PostTweet)
+
+			r.Post("/follow/{targetUserId}", userHandler.FollowUser)
+			r.Delete("/follow/{targetUserId}", userHandler.UnfollowUser)
+
+			r.Get("/timeline", tweetHandler.GetTimeline)
 		})
 		
 		r.Group(func(r chi.Router) {
-			r.Post("/register", api.Register)
-			r.Post("/login", api.Login)
-			
-			r.Get("/tweet/{tweetID}", api.GetTweet)
-			r.Get("/user/{username}", api.GetUser)
+			r.Post("/register", userHandler.Register)
+			r.Post("/login", userHandler.Login)
 		})
 	})
 
-	r.Route("/", func(r chi.Router) {
-		r.Use(jwtauth.Verifier(tokenAuth))
-		
-		r.Get("/", handleHomePage)
-	})
-
-
 	fmt.Printf("server listening on port 8080\n")
-	http.ListenAndServe(":8080", r)
-}
-
-func handleHomePage(w http.ResponseWriter, r *http.Request) {
-	_, claims, _ := jwtauth.FromContext(r.Context())
-	if userId := claims["user_id"]; userId != nil {
-		RenderTimeline(w, r, int64(userId.(float64)))
-		return
-	} 
-	RenderLogin(w, r)	
-}
-
-func RenderTimeline(w http.ResponseWriter, r *http.Request, userId int64) {
-	w.Header().Add("Content-Type", "text/html")
-	http.ServeFile(w, r, "html/timeline.html")
-}
-
-func RenderLogin(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/html")
-	http.ServeFile(w, r, "html/login.html")
+	if err = http.ListenAndServe(":8080", r); err != nil {
+		fmt.Printf("%v\n", err)
+	}
 }
