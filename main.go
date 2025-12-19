@@ -5,10 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/daniiltsioma/twitter/internal/handler"
-	"github.com/daniiltsioma/twitter/internal/models"
-	tweetservice "github.com/daniiltsioma/twitter/internal/tweet"
-	userservice "github.com/daniiltsioma/twitter/internal/user"
+	"github.com/daniiltsioma/twitter/internal/tweet"
+	"github.com/daniiltsioma/twitter/internal/user"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
 	"gorm.io/driver/sqlite"
@@ -24,18 +22,21 @@ func init() {
 
 func main() {
 	var err error
-	db, err = gorm.Open(sqlite.Open("twitter.db?_foreign_keys=on"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open("twitter.db?_foreign_keys=on"), &gorm.Config{TranslateError: true})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	db.AutoMigrate(&models.Tweet{}, &models.User{}, &models.Follow{})
+	db.AutoMigrate(&tweet.Tweet{}, &user.User{}, &user.Follow{})
 
-	tweetService := tweetservice.NewTweetService(db)
-	userService := userservice.NewUserService(db, tokenAuth)
+	userRepo := user.NewRepo(db)
+	tweetRepo := tweet.NewRepo(db)
 
-	tweetHandler := handler.NewTweetHandler(tweetService)
-	userHandler := handler.NewUserHandler(userService)
+	tweetService := tweet.NewService(tweetRepo)
+	userService := user.NewService(userRepo, tokenAuth)
+
+	tweetHandler := tweet.NewHandler(tweetService)
+	userHandler := user.NewHandler(userService)
 
 	r := chi.NewRouter()
 
@@ -48,8 +49,6 @@ func main() {
 
 			r.Post("/follow/{targetUserId}", userHandler.FollowUser)
 			r.Delete("/follow/{targetUserId}", userHandler.UnfollowUser)
-
-			r.Get("/timeline", tweetHandler.GetTimeline)
 		})
 		
 		r.Group(func(r chi.Router) {
