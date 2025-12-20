@@ -2,8 +2,15 @@ package tweet
 
 import (
 	"context"
+	"errors"
 
-	"github.com/go-chi/jwtauth"
+	"github.com/daniiltsioma/twitter/auth"
+)
+
+const MaxTweetLength = 280
+
+var (
+	ErrTextTooLong = errors.New("text too long")
 )
 
 type TweetService interface {
@@ -19,7 +26,14 @@ func NewService(repo TweetRepo) *tweetService {
 }
 
 func (s *tweetService) PostTweet(ctx context.Context, text string) (*Tweet, error) {
-	userId := s.getUserIdFromCtx(ctx)
+	userId, ok := auth.UserIDFromContext(ctx); 
+	if !ok {
+		return nil, errors.New("no user id")
+	}
+
+	if len(text) > 280 {
+		return nil, ErrTextTooLong
+	}
 
 	tweet := Tweet{
 		UserID: userId,
@@ -31,10 +45,4 @@ func (s *tweetService) PostTweet(ctx context.Context, text string) (*Tweet, erro
 	}
 
 	return &tweet, nil
-}
-
-func (s *tweetService) getUserIdFromCtx(ctx context.Context) int64 {
-	_, claims, _ := jwtauth.FromContext(ctx)
-	userID := int64(claims["user_id"].(float64))
-	return userID
 }

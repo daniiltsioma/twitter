@@ -37,13 +37,3 @@ func (h *TweetHandler) PostTweet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(tweet)
 }
-
-// func (h *TweetHandler) GetTimeline(w http.ResponseWriter, r *http.Request) {
-// 	tweets, err := h.svc.GetTimeline(r.Context())
-// 	if err != nil {
-// 		http.Error(w, "could not get timeline", http.StatusInternalServerError)
-// 	}
-
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(tweets)
-// }
