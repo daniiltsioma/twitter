@@ -15,6 +15,7 @@ var (
 
 type TweetService interface {
 	PostTweet(ctx context.Context, text string) (*Tweet, error)
+	GetTweet(ctx context.Context, tweetID int64) (*Tweet, error)
 }
 
 type tweetService struct {
@@ -45,4 +46,8 @@ func (s *tweetService) PostTweet(ctx context.Context, text string) (*Tweet, erro
 	}
 
 	return &tweet, nil
+}
+
+func (s *tweetService) GetTweet(ctx context.Context, tweetID int64) (*Tweet, error) {
+	return s.repo.GetTweet(ctx, tweetID)
 }
