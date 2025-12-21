@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/daniiltsioma/twitter/auth"
 	"github.com/daniiltsioma/twitter/internal/tweet"
 	"github.com/daniiltsioma/twitter/internal/user"
 	"github.com/go-chi/chi"
@@ -43,9 +44,10 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(jwtauth.Verifier(tokenAuth))
-			r.Use(jwtauth.Authenticator)
+			r.Use(auth.Middleware)
 		
 			r.Post("/tweet", tweetHandler.PostTweet)
+			r.Get("/tweet/{tweetID}", tweetHandler.GetTweet)
 
 			r.Post("/follow/{targetUserId}", userHandler.FollowUser)
 			r.Delete("/follow/{targetUserId}", userHandler.UnfollowUser)
