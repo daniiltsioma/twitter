@@ -37,7 +37,7 @@ func main() {
 
 	tweetService := tweet.NewService(tweetRepo)
 	userService := user.NewService(userRepo)
-	authService := auth.NewService(authRepo, userService, "secret")
+	authService := auth.NewService(authRepo, userService, tokenAuth)
 	timelineService := timeline.NewService(tweetService, userService)
 
 	tweetHandler := tweet.NewHandler(tweetService)
@@ -50,7 +50,7 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(jwtauth.Verifier(tokenAuth))
-			r.Use(auth.Middleware)
+			r.Use(auth.Authenticator)
 		
 			r.Post("/tweet", tweetHandler.PostTweet)
 			r.Get("/tweet/{tweetID}", tweetHandler.GetTweet)

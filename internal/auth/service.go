@@ -21,11 +21,11 @@ type authService struct {
 	tokenAuth *jwtauth.JWTAuth
 }
 
-func NewService(repo AuthRepo, us user.UserService, secret string) *authService {
+func NewService(repo AuthRepo, us user.UserService, tokenAuth *jwtauth.JWTAuth) *authService {
 	return &authService{
 		repo: repo, 
 		us: us,
-		tokenAuth: jwtauth.New("HS256", []byte(secret), nil),
+		tokenAuth: tokenAuth,
 	}
 }
 

@@ -7,8 +7,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 )
 
-
-func Middleware(next http.Handler) http.Handler {
+func Authenticator(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, claims, err := jwtauth.FromContext(r.Context())
 
