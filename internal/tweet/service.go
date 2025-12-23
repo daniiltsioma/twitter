@@ -3,8 +3,6 @@ package tweet
 import (
 	"context"
 	"errors"
-
-	"github.com/daniiltsioma/twitter/internal/auth"
 )
 
 const MaxTweetLength = 280
@@ -14,7 +12,7 @@ var (
 )
 
 type TweetService interface {
-	PostTweet(ctx context.Context, text string) (*Tweet, error)
+	PostTweet(ctx context.Context, userId int64, text string) (*Tweet, error)
 	GetTweet(ctx context.Context, tweetID int64) (*Tweet, error)
 
 	GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error)
@@ -25,15 +23,12 @@ type tweetService struct {
 }
 
 func NewService(repo TweetRepo) *tweetService {
-	return &tweetService{repo: repo}
+	return &tweetService{
+		repo: repo,
+	}
 }
 
-func (s *tweetService) PostTweet(ctx context.Context, text string) (*Tweet, error) {
-	userId, ok := auth.UserIDFromContext(ctx); 
-	if !ok {
-		return nil, errors.New("no user id")
-	}
-
+func (s *tweetService) PostTweet(ctx context.Context, userId int64, text string) (*Tweet, error) {
 	if len(text) > 280 {
 		return nil, ErrTextTooLong
 	}

@@ -21,9 +21,10 @@ func NewMockTweetService() *mockTweetService {
 	}
 }
 
-func (s *mockTweetService) PostTweet(ctx context.Context, text string) (*Tweet, error) {
+func (s *mockTweetService) PostTweet(ctx context.Context, userId int64, text string) (*Tweet, error) {
 	tweet := Tweet{
 		ID: int64(len(s.tweets)),
+		UserID: userId,
 		Text: text,
 	}
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/daniiltsioma/twitter/internal/auth"
 	"github.com/go-chi/chi"
 )
 
@@ -17,6 +18,12 @@ func NewHandler(svc TweetService) *TweetHandler {
 }
 
 func (h *TweetHandler) PostTweet(w http.ResponseWriter, r *http.Request) {
+	userId, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return 
+	}
+
 	var in struct {
 		Text string `json:"text"`
 	}
@@ -31,7 +38,7 @@ func (h *TweetHandler) PostTweet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tweet, err := h.svc.PostTweet(r.Context(), in.Text)
+	tweet, err := h.svc.PostTweet(r.Context(), userId, in.Text)
 	if err != nil {
 		http.Error(w, "could not post tweet", http.StatusInternalServerError)
 		return

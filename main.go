@@ -53,17 +53,18 @@ func main() {
 			r.Use(auth.Authenticator)
 		
 			r.Post("/tweet", tweetHandler.PostTweet)
-			r.Get("/tweet/{tweetID}", tweetHandler.GetTweet)
-
+			
 			r.Post("/follow/{targetUserId}", userHandler.FollowUser)
 			r.Delete("/follow/{targetUserId}", userHandler.UnfollowUser)
-
+			
 			r.Get("/timeline", timelineHandler.GetTweets)
 		})
 		
 		r.Group(func(r chi.Router) {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
+
+			r.Get("/tweet/{tweetID}", tweetHandler.GetTweet)
 		})
 	})
 

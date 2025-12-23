@@ -53,7 +53,7 @@ func TestServicePostTweet(t *testing.T) {
 	ctx := auth.WithUserID(context.Background(), 123)
 
 	for _, tt := range tests {
-		_, err := srv.PostTweet(ctx, tt.text)
+		_, err := srv.PostTweet(ctx, 123, tt.text)
 		if !errors.Is(err, tt.expectedError) {
 			t.Errorf("expected error %v got %v", tt.expectedError, err)
 		}
