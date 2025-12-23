@@ -5,7 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/daniiltsioma/twitter/auth"
+	"github.com/daniiltsioma/twitter/internal/auth"
+	"github.com/daniiltsioma/twitter/internal/timeline"
 	"github.com/daniiltsioma/twitter/internal/tweet"
 	"github.com/daniiltsioma/twitter/internal/user"
 	"github.com/go-chi/chi"
@@ -28,16 +29,21 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	db.AutoMigrate(&tweet.Tweet{}, &user.User{}, &user.Follow{})
+	db.AutoMigrate(&tweet.Tweet{}, &user.User{}, &user.Follow{}, &auth.Credentials{})
 
+	authRepo := auth.NewRepo(db)
 	userRepo := user.NewRepo(db)
 	tweetRepo := tweet.NewRepo(db)
 
 	tweetService := tweet.NewService(tweetRepo)
-	userService := user.NewService(userRepo, tokenAuth)
+	userService := user.NewService(userRepo)
+	authService := auth.NewService(authRepo, userService, "secret")
+	timelineService := timeline.NewService(tweetService, userService)
 
 	tweetHandler := tweet.NewHandler(tweetService)
 	userHandler := user.NewHandler(userService)
+	authHandler := auth.NewHandler(authService)
+	timelineHandler := timeline.NewHandler(timelineService)
 
 	r := chi.NewRouter()
 
@@ -51,11 +57,13 @@ func main() {
 
 			r.Post("/follow/{targetUserId}", userHandler.FollowUser)
 			r.Delete("/follow/{targetUserId}", userHandler.UnfollowUser)
+
+			r.Get("/timeline", timelineHandler.GetTweets)
 		})
 		
 		r.Group(func(r chi.Router) {
-			r.Post("/register", userHandler.Register)
-			r.Post("/login", userHandler.Login)
+			r.Post("/register", authHandler.Register)
+			r.Post("/login", authHandler.Login)
 		})
 	})
 

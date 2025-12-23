@@ -1,25 +1,12 @@
 package auth
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/go-chi/jwtauth"
 	"github.com/lestrrat-go/jwx/jwt"
 )
 
-type contextKey string
-
-const userIdKey contextKey = "userId"
-
-func WithUserID(ctx context.Context, userId int64) context.Context {
-	return context.WithValue(ctx, userIdKey, userId)
-}
-
-func UserIDFromContext(ctx context.Context) (int64, bool) {
-	userId, ok := ctx.Value(userIdKey).(int64)
-	return userId, ok
-}
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

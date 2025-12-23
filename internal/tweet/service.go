@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/daniiltsioma/twitter/auth"
+	"github.com/daniiltsioma/twitter/internal/auth"
 )
 
 const MaxTweetLength = 280
@@ -16,6 +16,8 @@ var (
 type TweetService interface {
 	PostTweet(ctx context.Context, text string) (*Tweet, error)
 	GetTweet(ctx context.Context, tweetID int64) (*Tweet, error)
+
+	GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error)
 }
 
 type tweetService struct {
@@ -50,4 +52,8 @@ func (s *tweetService) PostTweet(ctx context.Context, text string) (*Tweet, erro
 
 func (s *tweetService) GetTweet(ctx context.Context, tweetID int64) (*Tweet, error) {
 	return s.repo.GetTweet(ctx, tweetID)
+}
+
+func (s *tweetService) GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error) {
+	return s.repo.GetTweetsFromUsers(ctx, userIds)	
 }

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/daniiltsioma/twitter/auth"
+	"github.com/daniiltsioma/twitter/internal/auth"
 	"gorm.io/gorm"
 )
 
@@ -31,6 +31,10 @@ func (r *mockRepo) GetTweet(ctx context.Context, tweetID int64) (*Tweet, error) 
 		return nil, gorm.ErrRecordNotFound
 	}
 	return &tweet, nil
+}
+
+func (r *mockRepo) GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error) {
+	return nil, nil
 }
 
 func TestServicePostTweet(t *testing.T) {

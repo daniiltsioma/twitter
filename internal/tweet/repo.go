@@ -10,6 +10,8 @@ import (
 type TweetRepo interface {
 	InsertTweet(ctx context.Context, tweet *Tweet) error
 	GetTweet(ctx context.Context, tweetID int64) (*Tweet, error)
+
+	GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error)
 }
 
 type tweetRepo struct {
@@ -36,4 +38,14 @@ func (r *tweetRepo) GetTweet(ctx context.Context, tweetID int64) (*Tweet, error)
 	}
 
 	return &tweet, err
+}
+
+func (r *tweetRepo) GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error) {
+	tweets, err := gorm.G[Tweet](r.db).Where("user_id IN ?", userIds).Order("created_at DESC").Find(ctx)
+	if err != nil {
+		log.Printf("could not fetch tweets from users: %v", err)
+		return nil, err
+	}
+
+	return tweets, err
 }

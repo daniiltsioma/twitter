@@ -39,6 +39,10 @@ func (s *mockTweetService) GetTweet(ctx context.Context, tweetID int64) (*Tweet,
 	return tweet, nil
 }
 
+func (s *mockTweetService) GetTweetsFromUsers(ctx context.Context, usedIds []int64) ([]Tweet, error) {
+	return nil, nil
+}
+
 func TestHandlerPostTweet(t *testing.T) {
 	svc := NewMockTweetService()
 	handler := NewHandler(svc)

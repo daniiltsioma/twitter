@@ -10,10 +10,11 @@ import (
 
 type UserRepo interface {
 	InsertUser(ctx context.Context, user *User) error
-	GetUser(ctx context.Context, username string) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
 
 	InsertFollow(ctx context.Context, followerId, followedId int64) error
 	DeleteFollow(ctx context.Context, followerId, followedId int64) error
+	GetFollows(ctx context.Context, userId int64) ([]Follow, error)
 }
 
 type userRepo struct {
@@ -32,7 +33,7 @@ func (r *userRepo) InsertUser(ctx context.Context, user *User) error {
 	return nil
 }
 
-func (r *userRepo) GetUser(ctx context.Context, username string) (User, error) {
+func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	return gorm.G[User](r.db).Where("username = ?", username).First(ctx)
 }
 
@@ -61,4 +62,13 @@ func (r *userRepo) DeleteFollow(ctx context.Context, followerId, followedId int6
 	}
 
 	return nil
+}
+
+func (r *userRepo) GetFollows(ctx context.Context, userId int64) ([]Follow, error) {
+	follows, err := gorm.G[Follow](r.db).Where("follower_id = ?", userId).Find(ctx)
+	if err != nil {
+		log.Printf("could not fetch follows for userId=%d:%v", userId, err)
+		return nil, err
+	}
+	return follows, nil
 }
