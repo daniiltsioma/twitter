@@ -12,43 +12,28 @@ var (
 )
 
 type TweetService interface {
-	PostTweet(ctx context.Context, userId int64, text string) (*Tweet, error)
-	GetTweet(ctx context.Context, tweetID int64) (*Tweet, error)
+	Post(ctx context.Context, tweets []Tweet) error
+	Get(ctx context.Context, tweetID int64) (*Tweet, error)
 
-	GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error)
+	GetFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error)
 }
 
 type tweetService struct {
 	repo TweetRepo
 }
 
-func NewService(repo TweetRepo) *tweetService {
-	return &tweetService{
-		repo: repo,
-	}
+func NewService(ctx context.Context, repo TweetRepo) *tweetService {
+	return &tweetService{repo: repo}
 }
 
-func (s *tweetService) PostTweet(ctx context.Context, userId int64, text string) (*Tweet, error) {
-	if len(text) > 280 {
-		return nil, ErrTextTooLong
-	}
-
-	tweet := Tweet{
-		UserID: userId,
-		Text: text,
-	}
-
-	if err := s.repo.InsertTweet(ctx, &tweet); err != nil {
-		return nil, err
-	}
-
-	return &tweet, nil
+func (s *tweetService) Post(ctx context.Context, tweets []Tweet) error {
+	return s.repo.InsertMany(ctx, tweets)
 }
 
-func (s *tweetService) GetTweet(ctx context.Context, tweetID int64) (*Tweet, error) {
+func (s *tweetService) Get(ctx context.Context, tweetID int64) (*Tweet, error) {
 	return s.repo.GetTweet(ctx, tweetID)
 }
 
-func (s *tweetService) GetTweetsFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error) {
+func (s *tweetService) GetFromUsers(ctx context.Context, userIds []int64) ([]Tweet, error) {
 	return s.repo.GetTweetsFromUsers(ctx, userIds)	
 }

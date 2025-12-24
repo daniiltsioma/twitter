@@ -36,7 +36,7 @@ func (s *timelineService) GetTweets(ctx context.Context, userId int64) ([]tweet.
 		userIds = append(userIds, f.FollowedID)
 	}
 
-	tweets, err := s.tweets.GetTweetsFromUsers(ctx, userIds)
+	tweets, err := s.tweets.GetFromUsers(ctx, userIds)
 	if err != nil {
 		log.Printf("tweets error: %v", err)
 		return nil, err

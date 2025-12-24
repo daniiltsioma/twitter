@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,16 +32,19 @@ func main() {
 
 	db.AutoMigrate(&tweet.Tweet{}, &user.User{}, &user.Follow{}, &auth.Credentials{})
 
+	// app context
+	ctx := context.Background()
+
 	authRepo := auth.NewRepo(db)
 	userRepo := user.NewRepo(db)
 	tweetRepo := tweet.NewRepo(db)
 
-	tweetService := tweet.NewService(tweetRepo)
+	tweetService := tweet.NewService(ctx, tweetRepo)
 	userService := user.NewService(userRepo)
 	authService := auth.NewService(authRepo, userService, tokenAuth)
 	timelineService := timeline.NewService(tweetService, userService)
 
-	tweetHandler := tweet.NewHandler(tweetService)
+	tweetHandler := tweet.NewHandler(ctx, tweetService)
 	userHandler := user.NewHandler(userService)
 	authHandler := auth.NewHandler(authService)
 	timelineHandler := timeline.NewHandler(timelineService)
