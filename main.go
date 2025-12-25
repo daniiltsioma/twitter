@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/daniiltsioma/twitter/internal/auth"
 	"github.com/daniiltsioma/twitter/internal/timeline"
@@ -12,7 +13,7 @@ import (
 	"github.com/daniiltsioma/twitter/internal/user"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +26,13 @@ func init() {
 
 func main() {
 	var err error
-	db, err = gorm.Open(sqlite.Open("twitter.db?_foreign_keys=on"), &gorm.Config{TranslateError: true})
+
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	dsn := fmt.Sprintf("host=postgres port=5432 user=%s password=%s dbname=%s sslmode=disable", dbUser, dbPassword, dbName)
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{TranslateError: true})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
